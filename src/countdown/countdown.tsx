@@ -1,7 +1,6 @@
 import React, {useEffect, useState} from "react";
 import {useForm} from "react-hook-form";
 import {Icon, IconName} from "./icon";
-import {isSet} from "node:util/types";
 
 interface ButtonProps {
     value?: string;
@@ -63,12 +62,12 @@ const CountdownSetup: React.FC<CountdownProps> = (props) => {
         })}>
             {!props.isStarted &&
                 <div>
-                    <input type="number" className="w-48" placeholder="Temps de parole" {...register('time')} />
+                    <input type="number" className="w-48 h-10 text-base rounded" placeholder="Temps de parole" {...register('time')} />
                 </div>
             }
             <div>
                 {started && <Button value="Reset" onClick={props.onReset} disabled={!isPause} />}
-                <Button onClick={props.onPause} value="Pause" warning={isPause}/>
+                {started && <Button onClick={props.onPause} value="Pause" warning={isPause}/>}
                 {!started && <Button isSubmit={true} value="Start" selected={true} />}
             </div>
         </form>
@@ -79,7 +78,6 @@ interface CountdownDisplayProps {
     time: number;
     isPause: boolean;
     onTimeEnded: () => void;
-
 }
 const CountdownDisplay: React.FC<CountdownDisplayProps> = ({time, isPause, onTimeEnded}) => {
     const [remainingTime, setRemainingTime] = useState<number>(time);
@@ -183,7 +181,40 @@ export const AudioComponent: React.FC<AudioProps> = (props) => {
     );
 }
 
-export const Countdown: React.FC = () => {
+interface ISelectPersonProps {
+    names: string[];
+    display: boolean;
+    onSelected: (name: string) => void;
+    selected?: string
+}
+const SelectPersonComponent: React.FC<ISelectPersonProps> = (props) => {
+    return (
+        <React.Fragment>
+            {props.display &&
+                props.names.map((name, index) => {
+                    const background = name === props.selected ? 'bg-blue-200' : 'bg-white';
+                    const id = `_${index}`;
+                    return (
+                        <React.Fragment key={index}>
+                            <input id={id} type="radio" value="2" className="invisible"/>
+                            <button value={name} onClick={() => props.onSelected(name)}
+                                    className={`"px-4 py-2 text-sm font-medium text-gray-900 ${background} border border-gray-200 rounded-xl hover:bg-gray-100 hover:text-blue-700 focus:z-10 focus:ring-2 focus:ring-blue-700 focus:text-blue-700 dark:bg-gray-800 dark:border-gray-700 dark:text-white dark:hover:text-white dark:hover:bg-gray-700 dark:focus:ring-blue-500 dark:focus:text-white"`}>
+                                <label htmlFor={id}>{name}</label>
+                            </button>
+                        </React.Fragment>
+                    )
+                })
+            }
+        </React.Fragment>
+    );
+}
+
+export interface ICountdownProps {
+    names?: string[];
+    onSelectedName?: (name: string) => void;
+    setCountdownRunning: (isRunning: boolean) => void;
+}
+export const Countdown: React.FC<ICountdownProps> = (props) => {
     const [time, setTime] = React.useState<number | undefined>(undefined);
     const [isStarted, setIsStarted] = React.useState<boolean>(false);
     const [isPaused, setIsPaused] = React.useState<boolean>(false);
@@ -191,16 +222,24 @@ export const Countdown: React.FC = () => {
     const audioRef = React.useRef(null);
 
     const setInitialTime = (time: number) => {
-        reset();
+        resetTimeValues();
         setTime(time);
         setIsStarted(true);
+        props.setCountdownRunning(true);
     }
 
-    const reset = () => {
+    const resetTimeValues = () => {
         setIsStarted(false);
         setIsEnded(false);
         setIsPaused(false);
         setTime(undefined);
+    }
+
+    const reset = () => {
+        resetTimeValues()
+        setSelectedName(undefined)
+        props.setCountdownRunning(false);
+        props.onSelectedName!('');
     }
 
     const togglePause = () => {
@@ -212,22 +251,21 @@ export const Countdown: React.FC = () => {
         setIsPaused(true);
     }
 
-    const myFunction = (val: boolean) => {
-        if (null !== audioRef.current) {
-            (audioRef.current as any).play();
-        }
-        setIsEnded(val);
+    const [selectedName, setSelectedName] = useState<string | undefined>(undefined);
+    const handleSelected = (name: string) => {
+        props.onSelectedName && props.onSelectedName(name);
+        setSelectedName(name)
     }
 
     return (
         <div>
-
+            {props.names && props.onSelectedName && <SelectPersonComponent names={props.names} display={!isStarted} onSelected={handleSelected} selected={selectedName}></SelectPersonComponent>}
             {time && <div>
                 <CountdownDisplay time={time} isPause={isPaused} onTimeEnded={handleEnded}/>
             </div>}
             {<CountdownSetup onSubmit={setInitialTime} onPause={togglePause} onReset={reset} isPaused={isPaused}
                              isStarted={isStarted}/>}
-            {/*<AudioComponent play={isEnded} source={'/Users/xavierphilipponneau/Projets/Perso/countdown-jce/src/assets/gong.mp3'} />*/}
+
         </div>
     );
 
